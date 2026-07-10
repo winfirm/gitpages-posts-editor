@@ -4,7 +4,9 @@ A pure frontend single-page application for managing GitHub Pages blog posts (Je
 
 No backend server required — all code runs in the browser, and configuration is stored in `localStorage`.
 
-![](./demo_image.jpg)
+![demo](./shots/demo.webp)
+
+[README 中文版本](./README-zh.md)
 
 ## Features
 

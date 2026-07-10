@@ -4,6 +4,8 @@
 
 无需后端服务器，所有代码在浏览器中运行，配置信息存储在 `localStorage`。
 
+![demo](./shots/demo.webp)
+
 ## 功能特性
 
 - **GitHub API 集成**
