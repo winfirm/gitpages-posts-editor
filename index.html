@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Pages 博客管理器</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1>GitHub Pages 博客管理器</h1>
+      <div class="header-actions">
+        <button id="btn-open-dir" class="btn btn-primary">打开目录</button>
+        <button id="btn-settings" class="btn btn-secondary">设置</button>
+      </div>
+    </header>
+    
+    <main class="main">
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <input type="text" id="search-input" placeholder="搜索文章..." class="search-input">
+          <select id="sort-select" class="sort-select">
+            <option value="date-desc">日期 (新→旧)</option>
+            <option value="date-asc">日期 (旧→新)</option>
+            <option value="title-asc">标题 (A→Z)</option>
+            <option value="title-desc">标题 (Z→A)</option>
+          </select>
+        </div>
+        <ul id="article-list" class="article-list"></ul>
+        <div class="sidebar-footer">
+          <button id="btn-new-article" class="btn btn-success">新建文章</button>
+        </div>
+      </aside>
+      
+      <section class="editor-section">
+        <div class="editor-toolbar">
+          <button id="btn-save" class="btn btn-primary" disabled>保存</button>
+          <button id="btn-preview" class="btn btn-secondary">预览</button>
+          <button id="btn-ai" class="btn btn-ai" disabled>AI 助手</button>
+        </div>
+        <div class="editor-container">
+          <div class="editor-pane">
+            <textarea id="editor" class="editor" placeholder="在此输入 Markdown 内容..." disabled></textarea>
+          </div>
+          <div class="preview-pane">
+            <div id="preview" class="preview"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+    
+    <footer class="footer">
+      <span id="status-mode">模式: 本地</span>
+      <span id="status-file">文件: 未选择</span>
+      <span id="status-ai">AI: 未连接</span>
+    </footer>
+  </div>
+  
+  <!-- AI助手模态框 -->
+  <div id="ai-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>AI 助手</h2>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="ai-tabs">
+          <button class="ai-tab active" data-tab="generate">生成内容</button>
+          <button class="ai-tab" data-tab="optimize">优化内容</button>
+          <button class="ai-tab" data-tab="translate">翻译</button>
+        </div>
+        <div class="ai-tab-content active" id="tab-generate">
+          <textarea id="ai-prompt" placeholder="请输入生成提示，例如：写一篇关于 Python 异步编程的文章..." rows="4"></textarea>
+          <button id="btn-generate" class="btn btn-primary">生成</button>
+        </div>
+        <div class="ai-tab-content" id="tab-optimize" style="display: none;">
+          <textarea id="ai-optimize-instructions" placeholder="请输入优化指令，例如：改进文章结构，使语言更生动..." rows="4"></textarea>
+          <button id="btn-optimize" class="btn btn-primary">优化</button>
+        </div>
+        <div class="ai-tab-content" id="tab-translate" style="display: none;">
+          <select id="ai-target-language" class="form-select">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+          </select>
+          <button id="btn-translate" class="btn btn-primary">翻译</button>
+        </div>
+        <div id="ai-result" class="ai-result" style="display: none;">
+          <h3>AI 生成结果</h3>
+          <div id="ai-result-content" class="ai-result-content"></div>
+          <div class="ai-result-actions">
+            <button id="btn-apply-ai" class="btn btn-success">应用到编辑器</button>
+            <button id="btn-copy-ai" class="btn btn-secondary">复制</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 设置模态框 -->
+  <div id="settings-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>设置</h2>
+        <button id="btn-close-settings" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="settings-section">
+          <h3>GitHub 配置</h3>
+          <div class="form-group">
+            <label for="github-owner">仓库所有者</label>
+            <input type="text" id="github-owner" class="form-input" placeholder="username">
+          </div>
+          <div class="form-group">
+            <label for="github-repo">仓库名称</label>
+            <input type="text" id="github-repo" class="form-input" placeholder="repo-name">
+          </div>
+          <div class="form-group">
+            <label for="github-token">GitHub Token</label>
+            <input type="password" id="github-token" class="form-input" placeholder="ghp_xxxxxxxxxxxx">
+          </div>
+          <div class="form-group">
+            <label for="github-branch">分支</label>
+            <input type="text" id="github-branch" class="form-input" value="main">
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h3>LMStudio 配置</h3>
+          <div class="form-group">
+            <label for="lmstudio-url">API 地址</label>
+            <input type="text" id="lmstudio-url" class="form-input" value="http://localhost:1234/v1/chat/completions">
+          </div>
+          <div class="form-group">
+            <label for="lmstudio-model">模型名称</label>
+            <input type="text" id="lmstudio-model" class="form-input" value="local-model">
+          </div>
+        </div>
+        
+        <div class="settings-section">
+          <h3>应用设置</h3>
+          <div class="form-group">
+            <label for="posts-dir">文章目录</label>
+            <input type="text" id="posts-dir" class="form-input" value="_posts">
+          </div>
+          <div class="form-group">
+            <label>
+              <input type="checkbox" id="auto-save" checked> 自动保存
+            </label>
+          </div>
+        </div>
+        
+        <div class="settings-footer">
+          <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
+          <button id="btn-test-connection" class="btn btn-secondary">测试连接</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Toast通知 -->
+  <div id="toast-container" class="toast-container"></div>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/fileManager.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/aiAssistant.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

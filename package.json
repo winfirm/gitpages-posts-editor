@@ -1,0 +1,13 @@
+{
+  "name": "github-pages-blog-manager",
+  "version": "1.0.0",
+  "description": "A web app for managing GitHub Pages blog posts",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["github-pages", "jekyll", "blog", "markdown"],
+  "author": "",
+  "license": "MIT"
+}
