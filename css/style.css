@@ -375,6 +375,31 @@ body {
   gap: 0.35rem;
 }
 
+/* Footer 右侧内容 */
+.footer-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.footer-version {
+  color: var(--secondary-color);
+  font-size: 0.65rem;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.footer-github {
+  color: var(--secondary-color);
+  font-size: 0.65rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.footer-github:hover {
+  color: var(--text-color);
+}
+
 /* 状态指示点 */
 .status-success::before {
   content: '';
