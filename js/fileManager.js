@@ -240,14 +240,27 @@ class FileManager {
 
     const { owner, repo } = this.githubConfig;
     
+    console.log('Loading GitHub files:', { owner, repo, branch: this.branch });
+    
     try {
       // 获取 _posts 目录内容
       const contents = await this.githubApiCall(
         `/repos/${owner}/${repo}/contents/_posts?ref=${this.branch}`
       );
+      
+      console.log('GitHub API response:', contents);
+
+      // 检查是否是数组
+      if (!Array.isArray(contents)) {
+        console.error('Unexpected response:', contents);
+        throw new Error('无法获取 _posts 目录内容');
+      }
+
+      console.log(`Found ${contents.length} items in _posts`);
 
       // 过滤 .md 文件并加载内容
       for (const item of contents) {
+        console.log('Processing item:', item.name, item.type);
         if (item.type === 'file' && item.name.endsWith('.md')) {
           try {
             // 获取文件内容
@@ -255,9 +268,13 @@ class FileManager {
               `/repos/${owner}/${repo}/contents/_posts/${item.name}?ref=${this.branch}`
             );
             
-            // 解码 Base64 内容
-            const content = atob(fileData.content.replace(/\s/g, ''));
+            console.log('File data received:', item.name);
+            
+            // 解码 Base64 内容 (支持中文)
+            const content = decodeURIComponent(escape(atob(fileData.content.replace(/\s/g, ''))));
             const { frontmatter, content: articleContent } = Utils.parseFrontmatter(content);
+            
+            console.log('Parsed frontmatter:', frontmatter);
             
             this.files.set(item.name, {
               sha: fileData.sha,
@@ -266,16 +283,19 @@ class FileManager {
               frontmatter,
               content: articleContent,
               rawContent: content,
-              lastModified: new Date(item.commit.committer.date).getTime()
+              lastModified: new Date(item.commit?.committer?.date || Date.now()).getTime()
             });
           } catch (err) {
             console.error(`加载文件 ${item.name} 失败:`, err);
           }
         }
       }
+      
+      console.log('Total files loaded:', this.files.size);
 
       return Array.from(this.files.values());
     } catch (error) {
+      console.error('GitHub load error:', error);
       if (error.message.includes('404')) {
         throw new Error('_posts 目录不存在，请确认仓库中有 _posts 目录');
       }

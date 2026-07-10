@@ -119,10 +119,21 @@ class App {
 
   updateArticleList() {
     const articleList = document.getElementById('article-list');
-    if (!articleList) return;
+    if (!articleList) {
+      console.error('Article list element not found');
+      return;
+    }
 
     const articles = this.fileManager.getArticles();
+    console.log('Rendering articles:', articles.length);
+    
     articleList.innerHTML = '';
+
+    if (articles.length === 0) {
+      articleList.innerHTML = '<li class="article-item" style="color: #94a3b8; text-align: center; padding: 2rem;">没有找到文章</li>';
+      this.updateArticleCount(0);
+      return;
+    }
 
     articles.forEach(article => {
       const li = document.createElement('li');
@@ -134,11 +145,11 @@ class App {
       const tags = article.frontmatter.tags || [];
 
       li.innerHTML = `
-        <div class="article-item-title">${title}</div>
+        <div class="article-item-title">${this.escapeHtml(title)}</div>
         <div class="article-item-date">${date}</div>
         ${tags.length > 0 ? `
           <div class="article-item-tags">
-            ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
+            ${tags.map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
           </div>
         ` : ''}
       `;
@@ -151,6 +162,12 @@ class App {
     });
 
     this.updateArticleCount(articles.length);
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
   async openArticle(filename) {
@@ -391,9 +408,14 @@ class App {
       Utils.showToast('正在加载 GitHub 仓库...', 'info');
       await this.fileManager.loadGithubFiles();
       this.mode = 'github';
+      
+      console.log('Files loaded, updating article list...');
+      const articles = this.fileManager.getArticles();
+      console.log('Articles to display:', articles.length, articles);
+      
       this.updateArticleList();
       this.updateStatusMode('GitHub');
-      Utils.showToast('GitHub 仓库加载成功', 'success');
+      Utils.showToast(`GitHub 仓库加载成功，共 ${articles.length} 篇文章`, 'success');
     } catch (error) {
       console.error('Load GitHub files error:', error);
       Utils.showToast(`加载 GitHub 仓库失败: ${error.message}`, 'error');
