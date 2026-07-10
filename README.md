@@ -4,18 +4,22 @@
 
 ## 功能特性
 
-- 📁 读取和管理Jekyll格式的_posts目录文章
+- 📁 **双模式支持**
+  - 本地模式：直接读写本地文件系统
+  - GitHub模式：通过GitHub API管理远程仓库
 - ✏️ 分屏Markdown编辑器（左侧编辑，右侧实时预览）
 - 🤖 集成LMStudio本地大模型API
   - 内容生成
   - 内容优化
   - 翻译功能
 - 🔍 文章搜索和排序
-- 💾 本地文件直接读写（需支持File System Access API的浏览器）
+- 💾 创建、编辑、保存文章（自动生成frontmatter）
 
 ## 快速开始
 
-### 本地运行
+### 方式一：本地模式（推荐）
+
+适用于直接编辑本地Jekyll项目：
 
 1. 克隆项目
    ```bash
@@ -30,7 +34,31 @@
 
 3. 在浏览器打开 http://localhost:8000
 
-4. 点击"打开目录"按钮，选择您的Jekyll项目目录
+4. 点击"打开本地目录"按钮，选择您的Jekyll项目目录
+
+### 方式二：GitHub模式
+
+适用于管理远程GitHub仓库：
+
+1. **获取GitHub Token**
+   - 访问 https://github.com/settings/tokens
+   - 点击 "Generate new token (classic)"
+   - 选择 `repo` 权限
+   - 复制生成的Token（格式：`ghp_xxxxxxxx`）
+
+2. **配置应用**
+   - 点击"设置"按钮
+   - 填写 GitHub 配置：
+     - 仓库所有者：您的GitHub用户名
+     - 仓库名称：您的博客仓库名
+     - GitHub Token：粘贴刚才复制的Token
+     - 分支：默认 `main`
+   - 点击"测试连接"验证配置
+   - 保存设置
+
+3. **加载仓库**
+   - 点击"加载 GitHub"按钮
+   - 等待文章列表加载完成
 
 ### 配置LMStudio
 

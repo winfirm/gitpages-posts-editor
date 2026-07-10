@@ -35,6 +35,13 @@ class App {
       });
     }
 
+    const loadGithubBtn = document.getElementById('btn-load-github');
+    if (loadGithubBtn) {
+      loadGithubBtn.addEventListener('click', () => {
+        this.loadGithubFiles();
+      });
+    }
+
     const newArticleBtn = document.getElementById('btn-new-article');
     if (newArticleBtn) {
       newArticleBtn.addEventListener('click', () => {
@@ -175,7 +182,11 @@ class App {
     }
 
     try {
-      await this.fileManager.saveArticle(this.currentArticle.filename, content);
+      if (this.mode === 'github') {
+        await this.fileManager.saveGithubArticle(this.currentArticle.filename, content);
+      } else {
+        await this.fileManager.saveArticle(this.currentArticle.filename, content);
+      }
       Utils.showToast('文章已保存', 'success');
 
       this.updateArticleList();
@@ -191,10 +202,18 @@ class App {
     if (!title) return;
 
     try {
-      const article = await this.fileManager.createArticle(title, {
-        categories: [],
-        tags: []
-      });
+      let article;
+      if (this.mode === 'github') {
+        article = await this.fileManager.createGithubArticle(title, {
+          categories: [],
+          tags: []
+        });
+      } else {
+        article = await this.fileManager.createArticle(title, {
+          categories: [],
+          tags: []
+        });
+      }
 
       await this.openArticle(article.filename);
       this.updateArticleList();
@@ -354,20 +373,56 @@ class App {
 
   applySettings(settings) {
     if (settings.github) {
-      this.fileManager.githubConfig = settings.github;
+      this.fileManager.setGithubConfig(settings.github);
     }
 
     if (settings.lmstudio) {
       this.aiAssistant.updateConfig(settings.lmstudio);
     }
+
+    // 如果有GitHub配置，自动加载远程文件
+    if (settings.github?.token && settings.github?.owner && settings.github?.repo) {
+      this.loadGithubFiles();
+    }
+  }
+
+  async loadGithubFiles() {
+    try {
+      Utils.showToast('正在加载 GitHub 仓库...', 'info');
+      await this.fileManager.loadGithubFiles();
+      this.mode = 'github';
+      this.updateArticleList();
+      this.updateStatusMode('GitHub');
+      Utils.showToast('GitHub 仓库加载成功', 'success');
+    } catch (error) {
+      console.error('Load GitHub files error:', error);
+      Utils.showToast(`加载 GitHub 仓库失败: ${error.message}`, 'error');
+    }
   }
 
   async testConnection() {
-    const success = await this.aiAssistant.testConnection();
-    if (success) {
-      Utils.showToast('连接测试成功', 'success');
+    // 测试 GitHub 连接
+    const githubOwner = document.getElementById('github-owner').value;
+    const githubRepo = document.getElementById('github-repo').value;
+    const githubToken = document.getElementById('github-token').value;
+
+    if (githubToken && githubOwner && githubRepo) {
+      try {
+        // 临时设置配置进行测试
+        this.fileManager.setGithubConfig({
+          owner: githubOwner,
+          repo: githubRepo,
+          token: githubToken,
+          branch: document.getElementById('github-branch').value
+        });
+        
+        await this.fileManager.githubApiCall(`/repos/${githubOwner}/${githubRepo}`);
+        Utils.showToast('GitHub 连接测试成功', 'success');
+      } catch (error) {
+        Utils.showToast(`GitHub 连接测试失败: ${error.message}`, 'error');
+      }
     } else {
-      Utils.showToast('连接测试失败，请检查LMStudio是否运行', 'error');
+      Utils.showToast('请先填写完整的 GitHub 配置', 'warning');
     }
   }
 }
