@@ -110,7 +110,7 @@ python3 -m http.server 8000
 - ✅ Chrome 86+
 - ✅ Edge 86+
 - ✅ Firefox 90+
-- ⚠️ Safari (not fully tested)
+- ✅ Safari
 
 ## License
 
