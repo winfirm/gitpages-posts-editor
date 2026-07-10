@@ -4,11 +4,13 @@ A pure frontend single-page application for managing GitHub Pages blog posts (Je
 
 No backend server required — all code runs in the browser, and configuration is stored in `localStorage`.
 
-![demo](./shots/demo.webp)
-
 [Gitpages Posts Editor](https://winfirm.top/gitpages-posts-editor/)
 
 [README 中文版本](./README-zh.md)       
+
+---
+
+![demo](./shots/demo.webp)
 
 ## Features
 
