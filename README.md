@@ -1,110 +1,113 @@
-# GitHub Pages 博客管理器
+# GitPages Posts Editor
 
-一个基于纯HTML/JavaScript的单页应用，用于管理GitHub Pages博客。
+A pure frontend single-page application for managing GitHub Pages blog posts (Jekyll `_posts`) via the GitHub API.
 
-## 功能特性
+No backend server required — all code runs in the browser, and configuration is stored in `localStorage`.
 
-- 📁 **双模式支持**
-  - 本地模式：直接读写本地文件系统
-  - GitHub模式：通过GitHub API管理远程仓库
-- ✏️ 分屏Markdown编辑器（左侧编辑，右侧实时预览）
-- 🤖 集成LMStudio本地大模型API
-  - 内容生成
-  - 内容优化
-  - 翻译功能
-- 🔍 文章搜索和排序
-- 💾 创建、编辑、保存文章（自动生成frontmatter）
+## Features
 
-## 快速开始
+- **GitHub API Integration**
+  - Load `_posts` directory from remote repository, parse Jekyll frontmatter
+  - Create, edit, rename, and delete articles
+  - Token permission detection (supports Classic PAT and Fine-grained PAT)
+- **Markdown Editor**
+  - Split-pane editing with live preview (marked.js + highlight.js)
+  - Automatic frontmatter separation/merging — full formatting preserved on save
+  - Content change detection and one-click undo
+- **Editable Filename**
+  - Modify filename directly in the toolbar; auto-renames in Git repo on save (PUT new → DELETE old)
+- **AI Assistant (LMStudio)**
+  - Content generation, optimization, and translation
+  - AI result only replaces body content, preserving original frontmatter
+  - Loading animation with connection status indicator
+- **Article Management**
+  - Search and sort (by date / title)
+  - Hover-to-reveal delete button on list items (× → confirm → GitHub API DELETE)
+- **Dark theme UI** with responsive layout
 
-### 方式一：本地模式（推荐）
+## Quick Start
 
-适用于直接编辑本地Jekyll项目：
+### Prerequisites
 
-1. 克隆项目
-   ```bash
-   git clone <repository-url>
-   cd github-pages-blog-manager
-   ```
+A GitHub repository with a `_posts` folder in the root directory containing Jekyll-formatted `.md` articles.
 
-2. 启动本地服务器
-   ```bash
-   python3 -m http.server 8000
-   ```
+### 1. Get a GitHub Token
 
-3. 在浏览器打开 http://localhost:8000
+- Visit https://github.com/settings/tokens
+- Click **Fine-grained personal access tokens**
+- Click **Generate new token**
+- Click **Add permissions** → **Contents** → **Access: Read and write**
+- Copy the generated token (format: `ghp_xxxxxxxxxxxx`)
 
-4. 点击"打开本地目录"按钮，选择您的Jekyll项目目录
+### 2. Launch the App
 
-### 方式二：GitHub模式
+```bash
+# Open directly in browser (local file mode, view only)
+open index.html
 
-适用于管理远程GitHub仓库：
+# Recommended: serve with a local server (fewer security restrictions)
+python3 -m http.server 8000
+# Visit http://localhost:8000
+```
 
-1. **获取GitHub Token**
-   - 访问 https://github.com/settings/tokens
-   - 点击 "Generate new token (classic)"
-   - 选择 `repo` 权限
-   - 复制生成的Token（格式：`ghp_xxxxxxxx`）
+### 3. Configure & Load
 
-2. **配置应用**
-   - 点击"设置"按钮
-   - 填写 GitHub 配置：
-     - 仓库所有者：您的GitHub用户名
-     - 仓库名称：您的博客仓库名
-     - GitHub Token：粘贴刚才复制的Token
-     - 分支：默认 `main`
-   - 点击"测试连接"验证配置
-   - 保存设置
+1. Click **Settings**
+2. Fill in:
+   - Repository owner (username)
+   - Repository name
+   - GitHub Token
+   - Branch (default `main`)
+3. Click **Test Connection** to verify token permissions
+4. Save settings — the app will automatically load the `_posts` directory
 
-3. **加载仓库**
-   - 点击"加载 GitHub"按钮
-   - 等待文章列表加载完成
+### Configure LMStudio
 
-### 配置LMStudio
+1. Download and install [LMStudio](https://lmstudio.ai/)
+2. Load a model (e.g., Llama 3, Qwen, etc.)
+3. Start the local server (default `http://localhost:1234`)
+4. Enter the API URL and model name in the app settings
 
-1. 下载并安装 [LMStudio](https://lmstudio.ai/)
-2. 下载一个模型（如Llama 2、Mistral等）
-3. 启动LMStudio服务器（默认端口1234）
-4. 在应用设置中配置API地址（默认http://localhost:1234/v1/chat/completions）
+## Keyboard Shortcuts
 
-## 浏览器兼容性
+| Shortcut | Function |
+|----------|----------|
+| `Cmd/Ctrl + S` | Save article |
+| `Cmd/Ctrl + Enter` | Generate AI content (when AI panel is open) |
 
-- ✅ Chrome 86+
-- ✅ Edge 86+
-- ✅ Firefox（部分功能受限）
-- ⚠️ Safari（不支持File System Access API）
-
-## 技术栈
-
-- HTML5 / CSS3 / JavaScript ES6+
-- [marked.js](https://marked.js.org/) - Markdown解析
-- [highlight.js](https://highlightjs.org/) - 语法高亮
-- GitHub REST API v3
-- LMStudio API (OpenAI兼容)
-
-## 项目结构
+## Project Structure
 
 ```
-github-pages-blog-manager/
-├── index.html          # 主页面
+├── index.html              # Main page
 ├── css/
-│   └── style.css       # 样式文件
+│   └── style.css           # Styles (dark theme)
 ├── js/
-│   ├── app.js          # 主应用逻辑
-│   ├── fileManager.js  # 文件管理模块
-│   ├── editor.js       # 编辑器模块
-│   ├── aiAssistant.js  # AI助手模块
-│   └── utils.js        # 工具函数
+│   ├── app.js              # App main logic, event bindings
+│   ├── fileManager.js      # GitHub API file management (CRUD)
+│   ├── editor.js           # Editor, preview, undo, filename editing
+│   ├── aiAssistant.js      # LMStudio AI assistant
+│   └── utils.js            # Utility functions (frontmatter parse/generate, Toast)
+├── docs/                   # Design documents (if any)
 └── README.md
 ```
 
-## 快捷键
+## Tech Stack
 
-- `Ctrl+S` / `Cmd+S`: 保存文章
-- `Ctrl+Enter` / `Cmd+Enter`: 生成AI内容（AI助手打开时）
-- `Ctrl+Z` / `Cmd+Z`: 撤销
-- `Ctrl+Y` / `Cmd+Y`: 重做
+| Technology | Purpose |
+|------------|---------|
+| HTML5 / CSS3 / ES6+ | Frontend foundation |
+| [marked.js](https://marked.js.org/) | Markdown → HTML rendering |
+| [highlight.js](https://highlightjs.org/) | Code block syntax highlighting |
+| GitHub REST API v3 | Repository content read/write |
+| LMStudio API (OpenAI-compatible) | Local LLM inference |
 
-## 许可证
+## Browser Compatibility
 
-MIT License
+- ✅ Chrome 86+
+- ✅ Edge 86+
+- ✅ Firefox 90+
+- ⚠️ Safari (not fully tested)
+
+## License
+
+MIT

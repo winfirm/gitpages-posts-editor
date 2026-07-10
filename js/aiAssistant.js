@@ -120,14 +120,14 @@ class AIAssistant {
       
       if (response.ok) {
         this.isConnected = true;
-        this.updateStatus('AI: 已连接', 'success');
+        this.updateStatus('AI: Connected', 'success');
         return true;
       } else {
         throw new Error(`API error: ${response.status}`);
       }
     } catch (error) {
       this.isConnected = false;
-      this.updateStatus('AI: 连接失败', 'error');
+      this.updateStatus('AI: Disconnected', 'error');
       console.error('Connection test failed:', error);
       return false;
     }
@@ -171,30 +171,30 @@ class AIAssistant {
   async generateContent() {
     const prompt = document.getElementById('ai-prompt').value;
     if (!prompt) {
-      Utils.showToast('请输入生成提示', 'warning');
+      Utils.showToast('Please enter a prompt', 'warning');
       return;
     }
     
-    this.showLoading('正在生成内容...');
+    this.showLoading('Generating...');
     
     try {
       const messages = [
         {
           role: 'system',
-          content: '你是一个专业的技术博客作者，擅长撰写高质量的 Markdown 格式技术文章。请根据用户提供的标题或提示，生成完整的博客文章内容。文章应该包含适当的标题、段落、代码示例（如果相关）和技术细节。'
+          content: 'You are a professional tech blogger skilled at writing high-quality Markdown technical articles. Generate complete blog post content based on the user\'s title or prompt. Include appropriate headings, paragraphs, code examples (if relevant), and technical details.'
         },
         {
           role: 'user',
-          content: `请根据以下提示生成一篇博客文章：\n\n${prompt}`
+          content: `Write a blog post based on the following prompt:\n\n${prompt}`
         }
       ];
       
       const result = await this.callAPI(messages);
       this.showAIResult(result);
-      Utils.showToast('内容生成成功', 'success');
+      Utils.showToast('Content generated', 'success');
     } catch (error) {
       console.error('Generate error:', error);
-      Utils.showToast(`生成失败: ${error.message}`, 'error');
+      Utils.showToast(`Generate failed: ${error.message}`, 'error');
     } finally {
       this.hideLoading();
     }
@@ -203,42 +203,42 @@ class AIAssistant {
   async optimizeContent() {
     const instructions = document.getElementById('ai-optimize-instructions').value;
     if (!instructions) {
-      Utils.showToast('请输入优化指令', 'warning');
+      Utils.showToast('Please enter optimization instructions', 'warning');
       return;
     }
     
     const editor = window.app?.editor;
     if (!editor) {
-      Utils.showToast('编辑器未初始化', 'error');
+      Utils.showToast('Editor not initialized', 'error');
       return;
     }
     
     const currentContent = editor.getContent();
     if (!currentContent) {
-      Utils.showToast('没有内容可优化', 'warning');
+      Utils.showToast('No content to optimize', 'warning');
       return;
     }
     
-    this.showLoading('正在优化内容...');
+    this.showLoading('Optimizing...');
     
     try {
       const messages = [
         {
           role: 'system',
-          content: '你是一个专业的技术编辑，擅长优化和改进技术文章。请根据用户的指令，优化提供的 Markdown 内容。保持文章的核心意思，但改进其结构、语言和可读性。'
+          content: 'You are a professional technical editor skilled at optimizing and improving tech articles. Follow the user\'s instructions to optimize the provided Markdown content. Preserve the core meaning while improving structure, language, and readability.'
         },
         {
           role: 'user',
-          content: `请优化以下文章内容：\n\n优化指令：${instructions}\n\n当前内容：\n${currentContent}`
+          content: `Optimize the following article:\n\nInstructions: ${instructions}\n\nCurrent content:\n${currentContent}`
         }
       ];
       
       const result = await this.callAPI(messages);
       this.showAIResult(result);
-      Utils.showToast('内容优化成功', 'success');
+      Utils.showToast('Content optimized', 'success');
     } catch (error) {
       console.error('Optimize error:', error);
-      Utils.showToast(`优化失败: ${error.message}`, 'error');
+      Utils.showToast(`Optimize failed: ${error.message}`, 'error');
     } finally {
       this.hideLoading();
     }
@@ -249,17 +249,17 @@ class AIAssistant {
     
     const editor = window.app?.editor;
     if (!editor) {
-      Utils.showToast('编辑器未初始化', 'error');
+      Utils.showToast('Editor not initialized', 'error');
       return;
     }
     
     const currentContent = editor.getContent();
     if (!currentContent) {
-      Utils.showToast('没有内容可翻译', 'warning');
+      Utils.showToast('No content to translate', 'warning');
       return;
     }
     
-    this.showLoading('正在翻译...');
+    this.showLoading('Translating...');
     
     try {
       const languageNames = {
@@ -272,20 +272,20 @@ class AIAssistant {
       const messages = [
         {
           role: 'system',
-          content: `你是一个专业的技术翻译，擅长将技术文章翻译成${languageNames[targetLanguage] || targetLanguage}。请保持 Markdown 格式不变，只翻译文本内容。技术术语可以保留原文或提供常见翻译。`
+          content: `You are a professional technical translator skilled at translating tech articles into ${languageNames[targetLanguage] || targetLanguage}. Preserve Markdown formatting exactly — only translate the text content. Keep technical terms in their original form or use common translations.`
         },
         {
           role: 'user',
-          content: `请将以下文章翻译成${languageNames[targetLanguage] || targetLanguage}：\n\n${currentContent}`
+          content: `Translate the following article into ${languageNames[targetLanguage] || targetLanguage}:\n\n${currentContent}`
         }
       ];
       
       const result = await this.callAPI(messages);
       this.showAIResult(result);
-      Utils.showToast('翻译成功', 'success');
+      Utils.showToast('Translation complete', 'success');
     } catch (error) {
       console.error('Translate error:', error);
-      Utils.showToast(`翻译失败: ${error.message}`, 'error');
+      Utils.showToast(`Translate failed: ${error.message}`, 'error');
     } finally {
       this.hideLoading();
     }
@@ -294,10 +294,14 @@ class AIAssistant {
   showAIResult(content) {
     const resultDiv = document.getElementById('ai-result');
     const contentDiv = document.getElementById('ai-result-content');
+    const actionDiv = document.querySelector('.ai-result-actions');
     
     if (resultDiv && contentDiv) {
       contentDiv.innerHTML = marked.parse(content);
       resultDiv.style.display = 'block';
+      
+      // Restore apply/copy buttons (hidden during showLoading)
+      if (actionDiv) actionDiv.style.display = '';
       
       this.currentResult = content;
     }
@@ -305,39 +309,88 @@ class AIAssistant {
   
   applyAIResult() {
     if (!this.currentResult) {
-      Utils.showToast('没有可应用的结果', 'warning');
+      Utils.showToast('No result to apply', 'warning');
       return;
     }
-    
+
     const editor = window.app?.editor;
     if (editor) {
-      editor.loadContent(this.currentResult);
+      const currentContent = editor.getContent();
+
+      // 统一换行符（GitHub 可能用 \r\n，导致字符串定位失败）
+      const normalized = currentContent.replace(/\r\n/g, '\n');
+
+      // 查找 frontmatter 的结束位置（---\n...\n---\n）
+      const fmStart = normalized.indexOf('---\n');
+      if (fmStart === 0) {
+        const fmEnd = normalized.indexOf('\n---\n', 4); // 从第4个字符后开始找
+        if (fmEnd !== -1) {
+          // 保留原始 frontmatter 文本，只替换正文
+          const frontmatterPart = normalized.substring(0, fmEnd + 5); // 包含结尾的 \n---\n
+          editor.replaceContent(frontmatterPart + this.currentResult);
+        } else {
+          editor.replaceContent(this.currentResult);
+        }
+      } else {
+        // 没有 frontmatter，直接使用 AI 结果
+        editor.replaceContent(this.currentResult);
+      }
+
       this.hideModal();
-      Utils.showToast('内容已应用到编辑器', 'success');
+      Utils.showToast('Content applied to editor', 'success');
     }
   }
   
   async copyAIResult() {
     if (!this.currentResult) {
-      Utils.showToast('没有可复制的内容', 'warning');
+      Utils.showToast('Nothing to copy', 'warning');
       return;
     }
     
     try {
       await navigator.clipboard.writeText(this.currentResult);
-      Utils.showToast('内容已复制到剪贴板', 'success');
+      Utils.showToast('Copied to clipboard', 'success');
     } catch (error) {
       console.error('Copy error:', error);
-      Utils.showToast('复制失败', 'error');
+      Utils.showToast('Copy failed', 'error');
     }
   }
   
   showLoading(message) {
-    console.log(message);
+    const resultDiv = document.getElementById('ai-result');
+    const contentDiv = document.getElementById('ai-result-content');
+    const actionDiv = document.querySelector('.ai-result-actions');
+
+    // Show result area with loading spinner
+    if (resultDiv) resultDiv.style.display = 'block';
+    if (contentDiv) {
+      contentDiv.innerHTML = `<div class="ai-loading">
+        <div class="ai-loading-spinner"></div>
+        <div class="ai-loading-text">${message}</div>
+      </div>`;
+    }
+    // Hide apply/copy buttons; showAIResult will restore them
+    if (actionDiv) actionDiv.style.display = 'none';
+
+    // Disable tab action buttons to prevent duplicate submissions
+    const tabBtns = ['btn-generate', 'btn-optimize', 'btn-translate'];
+    tabBtns.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = true;
+    });
   }
-  
+
   hideLoading() {
-    console.log('Loading complete');
+    // Re-enable action buttons
+    const tabBtns = ['btn-generate', 'btn-optimize', 'btn-translate'];
+    tabBtns.forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.disabled = false;
+    });
+
+    // Restore apply/copy area (content may still show loading if showAIResult wasn't called)
+    const actionDiv = document.querySelector('.ai-result-actions');
+    if (actionDiv) actionDiv.style.display = '';
   }
   
   updateConfig(config) {

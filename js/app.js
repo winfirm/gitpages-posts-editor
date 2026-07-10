@@ -6,7 +6,6 @@ class App {
     this.aiAssistant = new AIAssistant();
 
     this.currentArticle = null;
-    this.mode = 'local'; // 'local' or 'github'
 
     this.init();
   }
@@ -14,11 +13,9 @@ class App {
   init() {
     this.bindEvents();
 
-    this.checkBrowserSupport();
-
     this.loadSettings();
 
-    this.updateUIState();
+    this.updateStatusMode('GitHub');
 
     document.addEventListener('editor:save', (e) => {
       this.saveCurrentArticle(e.detail.content);
@@ -28,13 +25,6 @@ class App {
   }
 
   bindEvents() {
-    const openDirBtn = document.getElementById('btn-open-dir');
-    if (openDirBtn) {
-      openDirBtn.addEventListener('click', () => {
-        this.openDirectory();
-      });
-    }
-
     const loadGithubBtn = document.getElementById('btn-load-github');
     if (loadGithubBtn) {
       loadGithubBtn.addEventListener('click', () => {
@@ -92,31 +82,6 @@ class App {
     }
   }
 
-  checkBrowserSupport() {
-    if (!this.fileManager.isSupported()) {
-      Utils.showToast('您的浏览器不支持 File System Access API，部分功能将受限', 'warning');
-
-      const openDirBtn = document.getElementById('btn-open-dir');
-      if (openDirBtn) {
-        openDirBtn.disabled = true;
-      }
-    }
-  }
-
-  async openDirectory() {
-    try {
-      const success = await this.fileManager.openDirectory();
-      if (success) {
-        Utils.showToast('目录已打开', 'success');
-        this.updateArticleList();
-        this.updateStatusMode('本地');
-      }
-    } catch (error) {
-      console.error('Open directory error:', error);
-      Utils.showToast(`打开目录失败: ${error.message}`, 'error');
-    }
-  }
-
   updateArticleList() {
     const articleList = document.getElementById('article-list');
     if (!articleList) {
@@ -130,34 +95,13 @@ class App {
     articleList.innerHTML = '';
 
     if (articles.length === 0) {
-      articleList.innerHTML = '<li class="article-item" style="color: #94a3b8; text-align: center; padding: 2rem;">没有找到文章</li>';
+      articleList.innerHTML = '<li class="article-item" style="color: #94a3b8; text-align: center; padding: 2rem;">No articles found</li>';
       this.updateArticleCount(0);
       return;
     }
 
     articles.forEach(article => {
-      const li = document.createElement('li');
-      li.className = 'article-item';
-      li.dataset.filename = article.filename;
-
-      const title = article.frontmatter.title || article.filename;
-      const date = article.frontmatter.date || '';
-      const tags = article.frontmatter.tags || [];
-
-      li.innerHTML = `
-        <div class="article-item-title">${this.escapeHtml(title)}</div>
-        <div class="article-item-date">${date}</div>
-        ${tags.length > 0 ? `
-          <div class="article-item-tags">
-            ${tags.map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
-          </div>
-        ` : ''}
-      `;
-
-      li.addEventListener('click', () => {
-        this.openArticle(article.filename);
-      });
-
+      const li = this.createArticleListItem(article);
       articleList.appendChild(li);
     });
 
@@ -175,7 +119,7 @@ class App {
       const article = await this.fileManager.readArticle(filename);
       this.currentArticle = article;
 
-      this.editor.loadContent(article.rawContent);
+      this.editor.loadContent(article.rawContent, filename);
       this.editor.setEnabled(true);
 
       this.updateArticleSelection(filename);
@@ -183,63 +127,84 @@ class App {
 
       const aiButton = document.getElementById('btn-ai');
       if (aiButton) {
+        aiButton.style.display = '';
         aiButton.disabled = false;
       }
 
     } catch (error) {
       console.error('Open article error:', error);
-      Utils.showToast(`打开文章失败: ${error.message}`, 'error');
+      Utils.showToast(`Failed to open article: ${error.message}`, 'error');
     }
   }
 
   async saveCurrentArticle(content) {
     if (!this.currentArticle) {
-      Utils.showToast('没有选中的文章', 'warning');
+      Utils.showToast('No article selected', 'warning');
       return;
     }
 
+      // Read filename from input; fall back to original
+    const newFilename = this.editor.getFilename() || this.currentArticle.filename;
+    const oldFilename = this.currentArticle.filename;
+    const isRename = newFilename !== oldFilename;
+
+    // Save old SHA before renaming (needed for DELETE)
+    const oldSha = isRename ? this.currentArticle.sha : null;
+
     try {
-      if (this.mode === 'github') {
-        await this.fileManager.saveGithubArticle(this.currentArticle.filename, content);
-      } else {
-        await this.fileManager.saveArticle(this.currentArticle.filename, content);
+      // 1. 保存新文件（GitHub PUT），更新当前文章引用
+      const savedArticle = await this.fileManager.saveGithubArticle(newFilename, content);
+      this.currentArticle = savedArticle;
+
+      // 2. Delete old file from GitHub if renamed
+      if (isRename) {
+        try {
+          await this.fileManager.deleteGithubArticle(oldFilename, oldSha);
+        } catch (deleteError) {
+          console.warn('Old file deletion failed (new file is safe):', deleteError);
+          Utils.showToast(
+            `New file saved, but old file (${oldFilename}) could not be deleted. Please clean up manually.`,
+            'warning',
+            6000
+          );
+        }
       }
-      Utils.showToast('文章已保存', 'success');
 
       this.updateArticleList();
+      this.updateStatusFile(newFilename);
+      Utils.showToast(
+        isRename ? `Renamed & saved (${oldFilename} → ${newFilename})` : 'Article saved',
+        'success'
+      );
+
+      // Reset undo anchor after successful save
+      this.editor.markClean();
 
     } catch (error) {
       console.error('Save article error:', error);
-      Utils.showToast(`保存失败: ${error.message}`, 'error');
+      if (error.message.includes('permission') || error.message.includes('Resource not accessible')) {
+        Utils.showToast(`Save failed - permission issue<br><br>${error.message}`, 'error', 12000);
+      } else {
+        Utils.showToast(`Save failed: ${error.message}`, 'error', 5000);
+      }
     }
   }
 
   async createNewArticle() {
-    const title = prompt('请输入文章标题:');
+    const title = prompt('Enter article title:');
     if (!title) return;
 
     try {
-      let article;
-      if (this.mode === 'github') {
-        article = await this.fileManager.createGithubArticle(title, {
-          categories: [],
-          tags: []
-        });
-      } else {
-        article = await this.fileManager.createArticle(title, {
-          categories: [],
-          tags: []
-        });
-      }
+      const article = await this.fileManager.createGithubArticle(title);
 
       await this.openArticle(article.filename);
       this.updateArticleList();
 
-      Utils.showToast('文章已创建', 'success');
+      Utils.showToast('Article created', 'success');
 
     } catch (error) {
       console.error('Create article error:', error);
-      Utils.showToast(`创建文章失败: ${error.message}`, 'error');
+      Utils.showToast(`Create failed: ${error.message}`, 'error');
     }
   }
 
@@ -263,30 +228,78 @@ class App {
     articleList.innerHTML = '';
 
     articles.forEach(article => {
-      const li = document.createElement('li');
-      li.className = 'article-item';
-      li.dataset.filename = article.filename;
-
-      const title = article.frontmatter.title || article.filename;
-      const date = article.frontmatter.date || '';
-      const tags = article.frontmatter.tags || [];
-
-      li.innerHTML = `
-        <div class="article-item-title">${title}</div>
-        <div class="article-item-date">${date}</div>
-        ${tags.length > 0 ? `
-          <div class="article-item-tags">
-            ${tags.map(tag => `<span class="tag">${tag}</span>`).join('')}
-          </div>
-        ` : ''}
-      `;
-
-      li.addEventListener('click', () => {
-        this.openArticle(article.filename);
-      });
-
+      const li = this.createArticleListItem(article);
       articleList.appendChild(li);
     });
+  }
+
+  // Shared list-item factory (includes delete button)
+  createArticleListItem(article) {
+    const li = document.createElement('li');
+    li.className = 'article-item';
+    li.dataset.filename = article.filename;
+
+    const title = article.frontmatter.title || article.filename;
+    const date = article.frontmatter.date || '';
+    const tags = article.frontmatter.tags || [];
+
+    li.innerHTML = `
+      <button class="article-item-delete" title="Delete article">×</button>
+      <div class="article-item-title">${this.escapeHtml(title)}</div>
+      <div class="article-item-date">${date}</div>
+      ${tags.length > 0 ? `
+        <div class="article-item-tags">
+          ${tags.map(tag => `<span class="tag">${this.escapeHtml(tag)}</span>`).join('')}
+        </div>
+      ` : ''}
+    `;
+
+    // Click row to open article
+    li.addEventListener('click', (e) => {
+      if (e.target.closest('.article-item-delete')) return;
+      this.openArticle(article.filename);
+    });
+
+    // Delete button handler
+    const deleteBtn = li.querySelector('.article-item-delete');
+    deleteBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.deleteArticle(article.filename);
+    });
+
+    return li;
+  }
+
+  async deleteArticle(filename) {
+    const article = this.fileManager.files.get(filename);
+    if (!article) {
+      Utils.showToast('Article not found', 'error');
+      return;
+    }
+
+    const title = article.frontmatter.title || filename;
+    const confirmed = confirm(`Delete "${title}"?\n\nThis will permanently delete the file from the GitHub repository.`);
+    if (!confirmed) return;
+
+    try {
+      await this.fileManager.deleteGithubArticle(filename, article.sha);
+
+      // Clear editor if the deleted article was open
+      if (this.currentArticle && this.currentArticle.filename === filename) {
+        this.currentArticle = null;
+        this.editor.clear();
+        this.editor.setEnabled(false);
+        document.getElementById('btn-ai').style.display = 'none';
+        this.updateStatusFile('none selected');
+      }
+
+      this.updateArticleList();
+      Utils.showToast(`Article "${title}" deleted`, 'success');
+
+    } catch (error) {
+      console.error('Delete article error:', error);
+      Utils.showToast(`Delete failed: ${error.message}`, 'error');
+    }
   }
 
   updateArticleSelection(filename) {
@@ -299,29 +312,21 @@ class App {
   updateArticleCount(count) {
     const statusFile = document.getElementById('status-file');
     if (statusFile) {
-      statusFile.textContent = `文章: ${count} 篇`;
+      statusFile.textContent = `Articles: ${count}`;
     }
   }
 
   updateStatusMode(mode) {
     const statusMode = document.getElementById('status-mode');
     if (statusMode) {
-      statusMode.textContent = `模式: ${mode}`;
+      statusMode.textContent = `Mode: ${mode}`;
     }
   }
 
   updateStatusFile(filename) {
     const statusFile = document.getElementById('status-file');
     if (statusFile) {
-      statusFile.textContent = `文件: ${filename}`;
-    }
-  }
-
-  updateUIState() {
-    if (this.mode === 'github') {
-      this.updateStatusMode('GitHub');
-    } else {
-      this.updateStatusMode('本地');
+      statusFile.textContent = `File: ${filename}`;
     }
   }
 
@@ -358,9 +363,6 @@ class App {
 
     document.getElementById('lmstudio-url').value = settings.lmstudio?.apiUrl || 'http://localhost:1234/v1/chat/completions';
     document.getElementById('lmstudio-model').value = settings.lmstudio?.model || 'local-model';
-
-    document.getElementById('posts-dir').value = settings.app?.postsDir || '_posts';
-    document.getElementById('auto-save').checked = settings.app?.autoSave !== false;
   }
 
   saveSettings() {
@@ -375,16 +377,13 @@ class App {
         apiUrl: document.getElementById('lmstudio-url').value,
         model: document.getElementById('lmstudio-model').value
       },
-      app: {
-        postsDir: document.getElementById('posts-dir').value,
-        autoSave: document.getElementById('auto-save').checked
-      }
+      app: {} // reserved for future use
     };
 
     localStorage.setItem('blogManagerSettings', JSON.stringify(settings));
     this.applySettings(settings);
 
-    Utils.showToast('设置已保存', 'success');
+    Utils.showToast('Settings saved', 'success');
     this.hideSettings();
   }
 
@@ -395,9 +394,11 @@ class App {
 
     if (settings.lmstudio) {
       this.aiAssistant.updateConfig(settings.lmstudio);
+      // Test AI connection on startup (non-blocking)
+      this.aiAssistant.testConnection().catch(() => {});
     }
 
-    // 如果有GitHub配置，自动加载远程文件
+    // Auto-load remote files when GitHub config is complete
     if (settings.github?.token && settings.github?.owner && settings.github?.repo) {
       this.loadGithubFiles();
     }
@@ -405,51 +406,79 @@ class App {
 
   async loadGithubFiles() {
     try {
-      Utils.showToast('正在加载 GitHub 仓库...', 'info');
+      Utils.showToast('Loading GitHub repository...', 'info');
       await this.fileManager.loadGithubFiles();
-      this.mode = 'github';
-      
+
       console.log('Files loaded, updating article list...');
       const articles = this.fileManager.getArticles();
       console.log('Articles to display:', articles.length, articles);
       
       this.updateArticleList();
       this.updateStatusMode('GitHub');
-      Utils.showToast(`GitHub 仓库加载成功，共 ${articles.length} 篇文章`, 'success');
+      Utils.showToast(`Repository loaded (${articles.length} articles)`, 'success');
     } catch (error) {
       console.error('Load GitHub files error:', error);
-      Utils.showToast(`加载 GitHub 仓库失败: ${error.message}`, 'error');
+      Utils.showToast(`Failed to load repository: ${error.message}`, 'error');
     }
   }
 
   async testConnection() {
-    // 测试 GitHub 连接
+    // Test GitHub connection
     const githubOwner = document.getElementById('github-owner').value;
     const githubRepo = document.getElementById('github-repo').value;
     const githubToken = document.getElementById('github-token').value;
 
     if (githubToken && githubOwner && githubRepo) {
       try {
-        // 临时设置配置进行测试
+        // Temporarily apply config for test
         this.fileManager.setGithubConfig({
           owner: githubOwner,
           repo: githubRepo,
           token: githubToken,
           branch: document.getElementById('github-branch').value
         });
+
+        Utils.showToast('Checking token permissions...', 'info', 2000);
         
-        await this.fileManager.githubApiCall(`/repos/${githubOwner}/${githubRepo}`);
-        Utils.showToast('GitHub 连接测试成功', 'success');
+        const permResult = await this.fileManager.checkGithubPermissions();
+
+        if (!permResult.valid) {
+          Utils.showToast(`Connection failed: ${permResult.message}`, 'error', 5000);
+          return;
+        }
+
+        // Show permission result
+        if (permResult.canWrite) {
+          if (permResult.isFineGrained) {
+            Utils.showToast('Connected — token has write access', 'success', 4000);
+          } else {
+            Utils.showToast(`Connected — scopes: ${permResult.scopes.join(', ')}`, 'success', 5000);
+          }
+        } else {
+          // Token is valid but missing write permission
+          const scopeMsg = permResult.isFineGrained
+            ? 'Token type: Fine-grained PAT'
+            : `Current scopes: ${permResult.scopes.join(', ') || 'none'}`;
+          
+          Utils.showToast(
+            `Connected but no write permission<br>${scopeMsg}<br><br>` +
+            `To save articles, add the following to your token:<br>` +
+            `• Classic Token: add repo or public_repo scope<br>` +
+            `• Fine-grained Token: set Contents to "Read and write"`,
+            'warning',
+            8000
+          );
+        }
       } catch (error) {
-        Utils.showToast(`GitHub 连接测试失败: ${error.message}`, 'error');
+        Utils.showToast(`Connection test failed: ${error.message}`, 'error', 5000);
       }
     } else {
-      Utils.showToast('请先填写完整的 GitHub 配置', 'warning');
+      Utils.showToast('Please complete GitHub configuration first', 'warning');
     }
   }
 }
 
-// 初始化应用
+// Initialize app
 document.addEventListener('DOMContentLoaded', () => {
   window.app = new App();
 });

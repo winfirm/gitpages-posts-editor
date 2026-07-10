@@ -1,7 +1,7 @@
 {
-  "name": "github-pages-blog-manager",
+  "name": "gitpages-posts-editor",
   "version": "1.0.0",
-  "description": "A web app for managing GitHub Pages blog posts",
+  "description": "A web-based editor for GitHub Pages blog posts",
   "main": "index.html",
   "scripts": {
     "start": "python3 -m http.server 8000",

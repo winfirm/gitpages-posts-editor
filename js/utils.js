@@ -25,21 +25,28 @@ const Utils = {
   },
   
   // 显示Toast通知
-  showToast(message, type = 'success') {
+  showToast(message, type = 'success', duration = 3000) {
     const container = document.getElementById('toast-container');
+    if (!container) return;
+
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
-    toast.textContent = message;
+    // 将换行符转换为 <br>，支持多行消息
+    toast.innerHTML = message.replace(/\n/g, '<br>');
     container.appendChild(toast);
     
     setTimeout(() => {
-      toast.remove();
-    }, 3000);
+      if (toast.parentNode) {
+        toast.remove();
+      }
+    }, duration);
   },
   
   // 解析YAML Frontmatter
   parseFrontmatter(content) {
-    const match = content.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
+    // 统一换行符（GitHub 可能用 \r\n，导致正则匹配失败）
+    const normalized = content.replace(/\r\n/g, '\n');
+    const match = normalized.match(/^---\n([\s\S]*?)\n---\n([\s\S]*)$/);
     if (!match) {
       return { frontmatter: {}, content: content };
     }
@@ -74,14 +81,8 @@ const Utils = {
     lines.push(`title: ${article.title}`);
     lines.push(`date: ${article.date}`);
     lines.push(`layout: ${article.layout || 'post'}`);
-    
-    if (article.categories && article.categories.length > 0) {
-      lines.push(`categories: [${article.categories.join(', ')}]`);
-    }
-    
-    if (article.tags && article.tags.length > 0) {
-      lines.push(`tags: [${article.tags.join(', ')}]`);
-    }
+    lines.push(`category: "all"`);
+    lines.push(`tags: []`);
     
     if (article.excerpt) {
       lines.push(`excerpt: ${article.excerpt}`);
