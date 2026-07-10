@@ -6,7 +6,9 @@ No backend server required — all code runs in the browser, and configuration i
 
 ![demo](./shots/demo.webp)
 
-[README 中文版本](./README-zh.md)
+[Gitpages Posts Editor](https://winfirm.top/gitpages-posts-editor/)
+
+[README 中文版本](./README-zh.md)       
 
 ## Features
 
